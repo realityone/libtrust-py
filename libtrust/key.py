@@ -11,6 +11,9 @@ class PublicKey(object):
     def pem_block(self):
         raise NotImplementedError()
 
+    def marshal_json(self):
+        raise NotImplementedError()
+
 
 class PrivateKey(PublicKey):
     def public_key(self):

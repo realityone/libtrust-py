@@ -1,4 +1,7 @@
 import base64
+import json
+
+from Crypto.Math._Numbers_gmp import Integer
 
 
 def key_id_encode(hash_bytes):
@@ -11,3 +14,25 @@ def key_id_encode(hash_bytes):
         result.append(s[start:end])
     result.append(s[(i + 1) * 4:])
     return ':'.join(result)
+
+
+def jose_base64_url_encode(data):
+    return base64.urlsafe_b64encode(data).rstrip('=')
+
+
+def number_to_byte(number):
+    return Integer(number).to_bytes()
+
+
+def serialize_rsa_public_exponent_param(e):
+    return Integer(e).to_bytes().lstrip('\x00')
+
+
+def dump_json(data, **kwargs):
+    kwargs.setdefault('sort_keys', True)
+    kwargs.setdefault('separators', (',', ':'))
+    return json.dumps(data, **kwargs)
+
+
+def inverse_number(x, m):
+    return int(Integer(x).inverse(m))
