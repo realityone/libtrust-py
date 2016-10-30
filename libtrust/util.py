@@ -1,7 +1,7 @@
 import base64
 import json
 
-from Crypto.Math._Numbers_gmp import Integer
+from Crypto.Math.Numbers import Integer
 
 
 def key_id_encode(hash_bytes):
