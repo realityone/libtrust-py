@@ -3,6 +3,8 @@ import hashlib
 
 import util
 from Crypto.PublicKey import RSA
+from Crypto.Signature import pkcs1_15
+from libtrust import hash as hash_
 from libtrust import key
 
 __all__ = ['RSAPublicKey', 'RSAPrivateKey']
@@ -47,6 +49,22 @@ class RSAPublicKey(RSAKey, PublicKey):
             'e': util.jose_base64_url_encode(util.serialize_rsa_public_exponent_param(self._key.e))
         }
 
+    def verify(self, buffer, alg, signature):
+        sig_alg = hash_.rsa_signature_algorithm_by_name(alg)
+        hasher = sig_alg.hasher()
+        while True:
+            d = buffer.read(1024)
+            if not d:
+                break
+            hasher.update(d)
+
+        try:
+            pkcs1_15.new(self.crypto_public_key()).verify(hasher, signature)
+        except ValueError as e:
+            raise e
+
+        return True
+
 
 class RSAPrivateKey(RSAKey, PrivateKey):
     def __init__(self, private_key):
@@ -87,3 +105,14 @@ class RSAPrivateKey(RSAKey, PrivateKey):
         }
         private_key_map.update(public_key_map)
         return private_key_map
+
+    def sign(self, buffer, hash_id):
+        sig_alg = hash_.rsa_pkcs1v15_signature_algorithm_for_hash_id(hash_id)
+        hasher = sig_alg.hasher()
+        while True:
+            d = buffer.read(1024)
+            if not d:
+                break
+            hasher.update(d)
+
+        return pkcs1_15.new(self._key).sign(hasher), sig_alg.header_param()

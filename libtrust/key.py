@@ -14,10 +14,16 @@ class PublicKey(object):
     def marshal_json(self):
         raise NotImplementedError()
 
+    def verify(self, buffer, alg, signature):
+        raise NotImplementedError()
+
 
 class PrivateKey(PublicKey):
     def public_key(self):
         raise NotImplementedError()
 
     def crypto_private_key(self):
+        raise NotImplementedError()
+
+    def sign(self, buffer, hash_id):
         raise NotImplementedError()
