@@ -1,11 +1,11 @@
 import copy
 import hashlib
 
-import util
 from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
 from libtrust import hash as hash_
 from libtrust import key
+from libtrust import util
 
 __all__ = ['RSAPublicKey', 'RSAPrivateKey']
 
