@@ -2,6 +2,8 @@ import enum
 
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import ECC
+from Crypto.Signature import DSS
+from Crypto.Util.asn1 import DerSequence
 from libtrust import hash as hash_
 from libtrust import key
 from libtrust import util
@@ -86,6 +88,22 @@ class ECPublicKey(ECKey, PublicKey):
         jwk['y'] = util.jose_base64_url_encode(y_bytes)
         return jwk
 
+    def verify(self, buffer, alg, signature):
+        sig_alg = self.signature_algorithm
+        hasher = sig_alg.hasher()
+        while True:
+            d = buffer.read(1024)
+            if not d:
+                break
+            hasher.update(d)
+
+        try:
+            DSS.new(self._key, 'fips-186-3').verify(hasher, signature)
+        except ValueError as e:
+            raise e
+
+        return True
+
 
 class ECPrivateKey(ECKey, PrivateKey):
     def __init__(self, key):
@@ -113,3 +131,24 @@ class ECPrivateKey(ECKey, PrivateKey):
         }
         private_key_map.update(public_key_map)
         return private_key_map
+
+    def sign(self, buffer, hash_id):
+        sig_alg = self.signature_algorithm
+        hasher = sig_alg.hasher()
+
+        while True:
+            d = buffer.read(1024)
+            if not d:
+                break
+            hasher.update(d)
+
+        sig_der = DSS.new(self._key, 'fips-186-3', encoding='der').sign(hasher)
+        r, s = DerSequence().decode(sig_der)
+        r_bytes = util.number_to_byte(r)
+        s_bytes = util.number_to_byte(s)
+        octet_length = (self.public_key().curve.bit_size() + 7) >> 3
+
+        r_bytes = '\x00' * (octet_length - len(r_bytes)) + r_bytes
+        s_bytes = '\x00' * (octet_length - len(s_bytes)) + s_bytes
+        signature = r_bytes + s_bytes
+        return signature, self.signature_algorithm.header_param()
