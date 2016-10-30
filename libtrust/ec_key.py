@@ -1,3 +1,5 @@
+import enum
+
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import ECC
 from libtrust import hash as hash_
@@ -8,11 +10,26 @@ PublicKey = key.PublicKey
 PrivateKey = key.PrivateKey
 
 
-class ECKey(object):
-    curve_to_signature_algorithm = {
-        'P-256': hash_.ES256,
-    }
+class Curves(enum.Enum):
+    P256 = 'P-256'
 
+    def curve(self):
+        return {
+            self.P256: ECC._curve
+        }[self]
+
+    def signature_algorithm(self):
+        return {
+            self.P256: hash_.ES256
+        }[self]
+
+    def bit_size(self):
+        return {
+            self.P256: 256
+        }[self]
+
+
+class ECKey(object):
     def key_type(self):
         return 'EC'
 
@@ -32,11 +49,15 @@ class ECKey(object):
 
     @property
     def curve_name(self):
-        return self.crypto_public_key().curve
+        return self.curve.value
+
+    @property
+    def curve(self):
+        return Curves(self.crypto_public_key().curve)
 
     @property
     def signature_algorithm(self):
-        return self.curve_to_signature_algorithm[self.curve_name]
+        return self.curve.signature_algorithm()
 
 
 class ECPublicKey(ECKey, PublicKey):
@@ -47,6 +68,23 @@ class ECPublicKey(ECKey, PublicKey):
     def from_pem(cls, key_data):
         public_key = ECC.import_key(key_data)
         return cls(public_key)
+
+    def to_map(self):
+        jwk = {
+            'kty': self.key_type(),
+            'kid': self.key_id(),
+            'crv': self.curve_name,
+        }
+        x_bytes = util.number_to_byte(self._key.pointQ.x)
+        y_bytes = util.number_to_byte(self._key.pointQ.y)
+        octet_length = (self.curve.bit_size() + 7) >> 3
+
+        x_bytes = '\x00' * (octet_length - len(x_bytes)) + x_bytes
+        y_bytes = '\x00' * (octet_length - len(y_bytes)) + y_bytes
+
+        jwk['x'] = util.jose_base64_url_encode(x_bytes)
+        jwk['y'] = util.jose_base64_url_encode(y_bytes)
+        return jwk
 
 
 class ECPrivateKey(ECKey, PrivateKey):
@@ -62,3 +100,16 @@ class ECPrivateKey(ECKey, PrivateKey):
 
     def public_key(self):
         return ECPublicKey(self.crypto_public_key())
+
+    def to_map(self):
+        public_key_map = self.public_key().to_map()
+        d_bytes = util.number_to_byte(int(self._key.d))
+        octet_length = (len(util.number_to_byte(int(self._key.d) - 1)) + 7) >> 3
+
+        d_bytes = '\x00' * (octet_length - len(d_bytes)) + d_bytes
+
+        private_key_map = {
+            'd': util.jose_base64_url_encode(d_bytes)
+        }
+        private_key_map.update(public_key_map)
+        return private_key_map
