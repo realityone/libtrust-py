@@ -1,6 +1,6 @@
 import copy
-import hashlib
 
+from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
 from libtrust import hash as hash_
@@ -22,7 +22,7 @@ class RSAKey(object):
 
     def key_id(self):
         der_bytes = self.crypto_public_key().exportKey(format='DER')
-        hash_bytes = hashlib.sha256(der_bytes).digest()
+        hash_bytes = SHA256.new(der_bytes).digest()
         return util.key_id_encode(hash_bytes[:30])
 
     def crypto_public_key(self):
