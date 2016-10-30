@@ -8,6 +8,8 @@ from libtrust import hash as hash_
 from libtrust import key
 from libtrust import util
 
+__all__ = ['ECPublicKey', 'ECPrivateKey']
+
 PublicKey = key.PublicKey
 PrivateKey = key.PrivateKey
 
