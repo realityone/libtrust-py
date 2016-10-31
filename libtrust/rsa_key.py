@@ -116,7 +116,7 @@ class RSAPrivateKey(RSAKey, PrivateKey):
         return self.key.private_bytes(
             serialization.Encoding.PEM,
             serialization.PrivateFormat.PKCS8,
-            serialization.NoEncryption
+            serialization.NoEncryption()
         )
 
     def public_key(self):

@@ -13,6 +13,10 @@ class ECKeyTest(unittest.TestCase):
         with open(fixtures_path('ec-public.pem'), 'r') as f:
             self.public_key = ec_key.ECPublicKey.from_pem(f.read())
 
+    def test_to_pem(self):
+        self.private_key.pem_block()
+        self.public_key.pem_block()
+
     def test_key_id(self):
         pub_key_key_id = self.public_key.key_id()
         priv_key_id = self.private_key.key_id()
