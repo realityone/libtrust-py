@@ -1,9 +1,12 @@
-import enum
+import copy
 
-from Crypto.Hash import SHA256
-from Crypto.PublicKey import ECC
-from Crypto.Signature import DSS
-from Crypto.Util.asn1 import DerSequence
+import enum
+from cryptography import utils as cry_utils
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric import utils as asy_utils
 from libtrust import hash as hash_
 from libtrust import key
 from libtrust import util
@@ -16,20 +19,36 @@ PrivateKey = key.PrivateKey
 
 class Curves(enum.Enum):
     P256 = 'P-256'
+    P384 = 'P-384'
+    P521 = 'P-521'
+
+    @classmethod
+    def from_common_name(cls, common_name):
+        return {
+            ec.SECP256R1.name: cls.P256,
+            ec.SECP384R1.name: cls.P384,
+            ec.SECP521R1.name: cls.P521
+        }[common_name]
 
     def curve(self):
         return {
-            self.P256: ECC._curve
+            self.P256: ec.SECP256R1,
+            self.P384: ec.SECP384R1,
+            self.P521: ec.SECP521R1
         }[self]
 
     def signature_algorithm(self):
         return {
-            self.P256: hash_.ES256
+            self.P256: hash_.ES256,
+            self.P384: hash_.ES384,
+            self.P521: hash_.ES521
         }[self]
 
     def bit_size(self):
         return {
-            self.P256: 256
+            self.P256: 256,
+            self.P384: 384,
+            self.P521: 521
         }[self]
 
 
@@ -37,18 +56,29 @@ class ECKey(object):
     def key_type(self):
         return 'EC'
 
-    def pem_block(self):
-        return self._key.export_key(format='PEM')
+    @property
+    def key(self):
+        return self._key
 
-    def crypto_public_key(self):
-        return self._key.public_key()
+    @key.setter
+    def key(self, value):
+        self._key = value
+        self.numbers = self._numbers()
+
+    def _numbers(self):
+        raise NotImplementedError()
 
     def marshal_json(self):
         return util.dump_json(self.to_map())
 
     def key_id(self):
-        der_bytes = self.crypto_public_key().export_key(format='DER')
-        hash_bytes = SHA256.new(der_bytes).digest()
+        der_bytes = self.crypto_public_key().public_bytes(
+            serialization.Encoding.DER,
+            serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        hasher = hashes.Hash(hashes.SHA256(), default_backend())
+        hasher.update(der_bytes)
+        hash_bytes = hasher.finalize()
         return util.key_id_encode(hash_bytes[:30])
 
     @property
@@ -57,7 +87,7 @@ class ECKey(object):
 
     @property
     def curve(self):
-        return Curves(self.crypto_public_key().curve)
+        return Curves.from_common_name(self.key.curve.name)
 
     @property
     def signature_algorithm(self):
@@ -66,12 +96,27 @@ class ECKey(object):
 
 class ECPublicKey(ECKey, PublicKey):
     def __init__(self, key):
-        self._key = key
+        self.key = key
+
+    def _numbers(self):
+        return self.key.public_numbers()
 
     @classmethod
     def from_pem(cls, key_data):
-        public_key = ECC.import_key(key_data)
+        public_key = serialization.load_pem_public_key(
+            key_data,
+            default_backend()
+        )
         return cls(public_key)
+
+    def pem_block(self):
+        return self.key.public_bytes(
+            serialization.Encoding.PEM,
+            serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+
+    def crypto_public_key(self):
+        return copy.copy(self.key)
 
     def to_map(self):
         jwk = {
@@ -79,8 +124,8 @@ class ECPublicKey(ECKey, PublicKey):
             'kid': self.key_id(),
             'crv': self.curve_name,
         }
-        x_bytes = util.number_to_byte(self._key.pointQ.x)
-        y_bytes = util.number_to_byte(self._key.pointQ.y)
+        x_bytes = cry_utils.int_to_bytes(self.numbers.x)
+        y_bytes = cry_utils.int_to_bytes(self.numbers.y)
         octet_length = (self.curve.bit_size() + 7) >> 3
 
         x_bytes = '\x00' * (octet_length - len(x_bytes)) + x_bytes
@@ -91,17 +136,25 @@ class ECPublicKey(ECKey, PublicKey):
         return jwk
 
     def verify(self, buffer, alg, signature):
+        sig_length = len(signature)
+        r_bytes, s_bytes = signature[:sig_length / 2], signature[sig_length / 2:]
+        r, s = cry_utils.int_from_bytes(r_bytes, 'big'), cry_utils.int_from_bytes(s_bytes, 'big')
+
+        signature = asy_utils.encode_dss_signature(r, s)
         sig_alg = self.signature_algorithm
-        hasher = sig_alg.hasher()
+        verifier = self.key.verifier(
+            signature,
+            ec.ECDSA(sig_alg.hasher())
+        )
         while True:
             d = buffer.read(1024)
             if not d:
                 break
-            hasher.update(d)
+            verifier.update(d)
 
         try:
-            DSS.new(self._key, 'fips-186-3').verify(hasher, signature)
-        except ValueError as e:
+            verifier.verify()
+        except Exception as e:
             raise e
 
         return True
@@ -109,45 +162,63 @@ class ECPublicKey(ECKey, PublicKey):
 
 class ECPrivateKey(ECKey, PrivateKey):
     def __init__(self, key):
-        self._key = key
+        self.key = key
+
+    def _numbers(self):
+        return self.key.private_numbers()
 
     @classmethod
     def from_pem(cls, key_data, passphrase=None):
-        # ignore EC PARAMETERS block
-        fixed_key_data = key_data[key_data.index('-----BEGIN EC PRIVATE KEY-----'):]
-        private_key = ECC.import_key(fixed_key_data, passphrase=passphrase)
+        private_key = serialization.load_pem_private_key(
+            key_data,
+            passphrase,
+            default_backend()
+        )
         return cls(private_key)
+
+    def pem_block(self):
+        return self.key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption
+        )
 
     def public_key(self):
         return ECPublicKey(self.crypto_public_key())
 
+    def crypto_private_key(self):
+        return copy.copy(self.key)
+
+    def crypto_public_key(self):
+        return self.key.public_key()
+
     def to_map(self):
         public_key_map = self.public_key().to_map()
-        d_bytes = util.number_to_byte(int(self._key.d))
-        octet_length = (len(util.number_to_byte(int(self._key.d) - 1)) + 7) >> 3
+        d_bytes = cry_utils.int_to_bytes(self.numbers.private_value)
+        octet_length = (len(cry_utils.int_to_bytes(self.numbers.private_value - 1)) + 7) >> 3
 
         d_bytes = '\x00' * (octet_length - len(d_bytes)) + d_bytes
-
         private_key_map = {
             'd': util.jose_base64_url_encode(d_bytes)
         }
+
         private_key_map.update(public_key_map)
         return private_key_map
 
     def sign(self, buffer, hash_id):
         sig_alg = self.signature_algorithm
-        hasher = sig_alg.hasher()
-
+        signer = self.key.signer(
+            ec.ECDSA(sig_alg.hasher())
+        )
         while True:
             d = buffer.read(1024)
             if not d:
                 break
-            hasher.update(d)
+            signer.update(d)
 
-        sig_der = DSS.new(self._key, 'fips-186-3', encoding='der').sign(hasher)
-        r, s = DerSequence().decode(sig_der)
-        r_bytes = util.number_to_byte(r)
-        s_bytes = util.number_to_byte(s)
+        r, s = asy_utils.decode_dss_signature(signer.finalize())
+        r_bytes = cry_utils.int_to_bytes(r)
+        s_bytes = cry_utils.int_to_bytes(s)
         octet_length = (self.public_key().curve.bit_size() + 7) >> 3
 
         r_bytes = '\x00' * (octet_length - len(r_bytes)) + r_bytes

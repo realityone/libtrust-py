@@ -1,10 +1,6 @@
 import enum
-from Crypto.Hash import MD5
-from Crypto.Hash import SHA1
-from Crypto.Hash import SHA224
-from Crypto.Hash import SHA256
-from Crypto.Hash import SHA384
-from Crypto.Hash import SHA512
+
+from cryptography.hazmat.primitives import hashes
 
 
 class HashID(enum.Enum):
@@ -18,12 +14,12 @@ class HashID(enum.Enum):
     @property
     def hash_func(self):
         return {
-            self.MD5: MD5,
-            self.SHA1: SHA1,
-            self.SHA224: SHA224,
-            self.SHA256: SHA256,
-            self.SHA384: SHA384,
-            self.SHA512: SHA512,
+            self.MD5: hashes.MD5,
+            self.SHA1: hashes.SHA1,
+            self.SHA224: hashes.SHA224,
+            self.SHA256: hashes.SHA256,
+            self.SHA384: hashes.SHA384,
+            self.SHA512: hashes.SHA512,
         }[self]
 
     @classmethod
@@ -41,7 +37,7 @@ class SignatureAlgorithm(object):
         return self.alg_header_param
 
     def hasher(self):
-        return self.hash_id.hash_func.new()
+        return self.hash_id.hash_func()
 
 
 RS256 = SignatureAlgorithm('RS256', HashID.SHA256)
@@ -49,7 +45,7 @@ RS384 = SignatureAlgorithm('RS384', HashID.SHA384)
 RS512 = SignatureAlgorithm('RS512', HashID.SHA512)
 ES256 = SignatureAlgorithm('ES256', HashID.SHA256)
 ES384 = SignatureAlgorithm('ES384', HashID.SHA384)
-ES512 = SignatureAlgorithm('ES512', HashID.SHA512)
+ES521 = SignatureAlgorithm('ES521', HashID.SHA512)
 
 
 def rsa_signature_algorithm_by_name(alg):

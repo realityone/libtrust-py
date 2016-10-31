@@ -1,2 +1,2 @@
 enum34==1.1.6
-pycryptodome==3.4.3
+cryptography==1.5.2
