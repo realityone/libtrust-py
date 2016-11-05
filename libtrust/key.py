@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import json
+
 
 class PublicKey(object):
     def key_type(self):
@@ -30,3 +32,16 @@ class PrivateKey(PublicKey):
 
     def sign(self, buffer, hash_id):
         raise NotImplementedError()
+
+
+def unmarshal_public_key_jwk(data):
+    from libtrust import ec_key
+    from libtrust import rsa_key
+
+    jwk = json.loads(data)
+
+    kty = jwk['kty']
+    return {
+        'EC': ec_key.ec_public_key_from_map(jwk),
+        'RSA': rsa_key.rsa_public_key_from_map(jwk)
+    }[kty]
