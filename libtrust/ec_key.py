@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import copy
 
 import enum
@@ -30,7 +32,7 @@ class Curves(enum.Enum):
             ec.SECP521R1.name: cls.P521
         }[common_name]
 
-    def curve(self):
+    def crypto_curve(self):
         return {
             self.P256: ec.SECP256R1,
             self.P384: ec.SECP384R1,
@@ -128,8 +130,8 @@ class ECPublicKey(ECKey, PublicKey):
         y_bytes = cry_utils.int_to_bytes(self.numbers.y)
         octet_length = (self.curve.bit_size() + 7) >> 3
 
-        x_bytes = '\x00' * (octet_length - len(x_bytes)) + x_bytes
-        y_bytes = '\x00' * (octet_length - len(y_bytes)) + y_bytes
+        x_bytes = str('\x00') * (octet_length - len(x_bytes)) + x_bytes
+        y_bytes = str('\x00') * (octet_length - len(y_bytes)) + y_bytes
 
         jwk['x'] = util.jose_base64_url_encode(x_bytes)
         jwk['y'] = util.jose_base64_url_encode(y_bytes)
@@ -197,7 +199,7 @@ class ECPrivateKey(ECKey, PrivateKey):
         d_bytes = cry_utils.int_to_bytes(self.numbers.private_value)
         octet_length = (len(cry_utils.int_to_bytes(self.numbers.private_value - 1)) + 7) >> 3
 
-        d_bytes = '\x00' * (octet_length - len(d_bytes)) + d_bytes
+        d_bytes = str('\x00') * (octet_length - len(d_bytes)) + d_bytes
         private_key_map = {
             'd': util.jose_base64_url_encode(d_bytes)
         }
@@ -221,7 +223,21 @@ class ECPrivateKey(ECKey, PrivateKey):
         s_bytes = cry_utils.int_to_bytes(s)
         octet_length = (self.public_key().curve.bit_size() + 7) >> 3
 
-        r_bytes = '\x00' * (octet_length - len(r_bytes)) + r_bytes
-        s_bytes = '\x00' * (octet_length - len(s_bytes)) + s_bytes
+        r_bytes = str('\x00') * (octet_length - len(r_bytes)) + r_bytes
+        s_bytes = str('\x00') * (octet_length - len(s_bytes)) + s_bytes
         signature = r_bytes + s_bytes
         return signature, self.signature_algorithm.header_param()
+
+
+def ec_public_key_from_map(jwk):
+    crv_name = jwk['crv']
+    curve = Curves(crv_name)
+
+    crypto_curve = curve.crypto_curve()
+
+    xb64url = jwk['x']
+    yb64url = jwk['y']
+    x = util.parse_ec_coordinate(xb64url, curve)
+    y = util.parse_ec_coordinate(yb64url, curve)
+    public_key = ec.EllipticCurvePublicNumbers(x, y, crypto_curve()).public_key(default_backend())
+    return ECPublicKey(public_key)

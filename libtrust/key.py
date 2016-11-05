@@ -1,3 +1,6 @@
+from __future__ import unicode_literals
+
+
 class PublicKey(object):
     def key_type(self):
         raise NotImplementedError()

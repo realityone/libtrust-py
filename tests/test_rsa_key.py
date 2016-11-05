@@ -1,4 +1,7 @@
+from __future__ import unicode_literals
+
 import StringIO
+import json
 import unittest
 
 from libtrust import hash as hash_
@@ -31,8 +34,13 @@ class RSAKeyTest(unittest.TestCase):
         self.assertEqual(pub_key_json_origin, pub_key_json)
         self.assertEqual(priv_key_json_origin, priv_key_json)
 
+    def test_from_jwk(self):
+        pub_key_json = self.public_key.marshal_json()
+        pub_key = rsa_key.rsa_public_key_from_map(json.loads(pub_key_json))
+        self.assertEqual(pub_key_json, pub_key.marshal_json())
+
     def test_sign(self):
-        message = StringIO.StringIO('Hello, World!')
+        message = StringIO.StringIO('Hello, World!'.encode('utf-8'))
         sig_algs = (hash_.RS256, hash_.RS384, hash_.RS512)
         origin_sig = (
             [47, 53, 27, 154, 98, 40, 87, 246, 73, 49, 80, 241, 186, 20, 180, 75, 78, 152, 83, 140, 12, 163, 134, 214, 100, 92,

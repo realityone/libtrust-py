@@ -1,5 +1,6 @@
-import enum
+from __future__ import unicode_literals
 
+import enum
 from cryptography.hazmat.primitives import hashes
 
 

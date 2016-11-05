@@ -1,4 +1,7 @@
+from __future__ import unicode_literals
+
 import StringIO
+import json
 import unittest
 
 from libtrust import ec_key
@@ -31,8 +34,13 @@ class ECKeyTest(unittest.TestCase):
         self.assertEqual(pub_key_json_origin, pub_key_json)
         self.assertEqual(priv_key_json_origin, priv_key_json)
 
+    def test_from_jwk(self):
+        pub_key_json = self.public_key.marshal_json()
+        pub_key = ec_key.ec_public_key_from_map(json.loads(pub_key_json))
+        self.assertEqual(pub_key_json, pub_key.marshal_json())
+
     def test_sign(self):
-        message = StringIO.StringIO('Hello, World!')
+        message = StringIO.StringIO('Hello, World!'.encode('utf-8'))
         sig_algs = (hash_.ES256, hash_.ES384, hash_.ES521)
         origin_sig = (
             [88, 34, 78, 248, 120, 105, 162, 172, 14, 179, 252, 201, 193, 230, 124, 105, 227, 145, 236, 104, 31, 153, 215, 117,
@@ -54,4 +62,4 @@ class ECKeyTest(unittest.TestCase):
             self.assertTrue(self.public_key.verify(message, alg, sig))
 
             message.seek(0)
-            self.assertTrue(self.public_key.verify(message, alg, ''.join([chr(i) for i in origin_sig[i]])))
+            self.assertTrue(self.public_key.verify(message, alg, str('').join([chr(i) for i in origin_sig[i]])))

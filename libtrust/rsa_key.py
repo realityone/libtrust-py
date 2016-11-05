@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 import copy
 
 from cryptography import utils as cry_utils
@@ -6,6 +8,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric import rsa
 from libtrust import hash as hash_
 from libtrust import key
 from libtrust import util
@@ -154,3 +157,13 @@ class RSAPrivateKey(RSAKey, PrivateKey):
             signer.update(d)
 
         return signer.finalize(), sig_alg.header_param()
+
+
+def rsa_public_key_from_map(jwk):
+    nb64url = jwk['n']
+    eb64url = jwk['e']
+
+    n = util.parse_rsa_modules_params(nb64url)
+    e = util.parse_rsa_public_exponent_param(eb64url)
+    public_key = rsa.RSAPublicNumbers(e, n).public_key(default_backend())
+    return RSAPublicKey(public_key)
