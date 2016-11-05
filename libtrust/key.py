@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import json
 
+__all__ = ['unmarshal_public_key_jwk']
+
 
 class PublicKey(object):
     def key_type(self):
