@@ -1,13 +1,16 @@
 from __future__ import unicode_literals
 
+import StringIO
+
+from libtrust import hash as hash_
 from libtrust import util
 
 
 class JsHeader(object):
-    def __init__(self, public_key, algorithm, chain):
+    def __init__(self, public_key, algorithm, chain=None):
         self.public_key = public_key
         self.algorithm = algorithm
-        self.chain = chain
+        self.chain = chain or []
 
 
 class JsSignature(object):
@@ -46,3 +49,23 @@ class JSONSignature(object):
             'time': util.utc_rfc3339(timestamp=timestamp)
         }
         return util.jose_base64_url_encode(util.dump_json(protected))
+
+    def sign_bytes(self, protected):
+        return '{}.{}'.format(protected, self.payload).encode('utf-8')
+
+    def sign(self, private_key, timestamp=None):
+        protected = self.protected_header(timestamp=timestamp)
+        sign_bytes = StringIO.StringIO(self.sign_bytes(protected))
+
+        sig_bytes, algorithm = private_key.sign(sign_bytes, hash_.HashID.SHA256)
+        self.signatures.append(
+            JsSignature(
+                JsHeader(
+                    private_key.public_key(),
+                    algorithm
+                ),
+                util.jose_base64_url_encode(sig_bytes),
+                protected
+            )
+        )
+        return sig_bytes, algorithm
