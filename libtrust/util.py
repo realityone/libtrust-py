@@ -1,7 +1,9 @@
 from __future__ import unicode_literals
 
 import base64
+import datetime
 import json
+import time
 
 from cryptography import utils as cry_utils
 
@@ -60,3 +62,9 @@ def parse_ec_coordinate(cb64url, curve):
     if len(c_bytes) != curve_byte_len:
         raise Exception("invalid number of octets: got %d, should be %d", len(c_bytes), curve_byte_len)
     return cry_utils.int_from_bytes(c_bytes, 'big')
+
+
+def utc_rfc3339(timestamp=None):
+    timestamp = timestamp or time.time()
+    date = datetime.datetime.utcfromtimestamp(timestamp)
+    return date.strftime('%Y-%m-%dT%H:%M:%SZ')

@@ -34,8 +34,15 @@ class JSONSignature(object):
     @classmethod
     def from_map(cls, content):
         indent = 3
-        payload = util.jose_base64_url_encode(
-            util.dump_json(content, indent=3, separators=(',', ': '))
-        )
+        payload = util.dump_json(content, indent=3, separators=(',', ': '))
+        payload_b64url = util.jose_base64_url_encode(payload)
         format_length = len(payload) - 2
-        return cls(payload, ' ' * indent, format_length, payload[format_length:])
+        return cls(payload_b64url, ' ' * indent, format_length, payload[format_length:])
+
+    def protected_header(self, timestamp=None):
+        protected = {
+            'formatLength': self.format_length,
+            'formatTail': util.jose_base64_url_encode(self.format_tail),
+            'time': util.utc_rfc3339(timestamp=timestamp)
+        }
+        return util.jose_base64_url_encode(util.dump_json(protected))
