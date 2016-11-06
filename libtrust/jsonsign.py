@@ -1,29 +1,27 @@
 from __future__ import unicode_literals
 
 import StringIO
+import collections
 
 from libtrust import hash as hash_
 from libtrust import util
 
-
-class JsHeader(object):
-    def __init__(self, public_key, algorithm, chain=None):
-        self.public_key = public_key
-        self.algorithm = algorithm
-        self.chain = chain or []
+namedtuple = collections.namedtuple
 
 
-class JsSignature(object):
-    def __init__(self, header, signature, protected):
-        self.header = header
-        self.signature = signature
-        self.protected = protected
+class JsHeader(namedtuple('_JsHeader', ['public_key', 'algorithm', 'chain'])):
+    @staticmethod
+    def __new__(cls, public_key, algorithm, chain=None):
+        chain = chain or []
+        return super(JsHeader, cls).__new__(cls, public_key, algorithm, chain)
 
 
-class SignKey(object):
-    def __init__(self, private_key, chain):
-        self.private_key = private_key
-        self.chain = chain
+class JsSignature(namedtuple('_JsSignature', ['header', 'signature', 'protected'])):
+    pass
+
+
+class SignKey(namedtuple('_SignKey', ['private_key', 'chain'])):
+    pass
 
 
 class JSONSignature(object):
