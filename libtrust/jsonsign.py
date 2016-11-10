@@ -9,19 +9,28 @@ from libtrust import util
 namedtuple = collections.namedtuple
 
 
-class JsHeader(namedtuple('_JsHeader', ['public_key', 'algorithm', 'chain'])):
-    @staticmethod
-    def __new__(cls, public_key, algorithm, chain=None):
+class JsHeader(dict):
+    def __init__(self, public_key, algorithm, chain=None):
+        super(JsHeader, self).__init__()
         chain = chain or []
-        return super(JsHeader, cls).__new__(cls, public_key, algorithm, chain)
+        self['public_key'] = public_key
+        self['algorithm'] = algorithm
+        self['chain'] = chain
 
 
-class JsSignature(namedtuple('_JsSignature', ['header', 'signature', 'protected'])):
-    pass
+class JsSignature(dict):
+    def __init__(self, header, signature, protected):
+        super(JsSignature, self).__init__()
+        self['header'] = header
+        self['signature'] = signature
+        self['protected'] = protected
 
 
-class SignKey(namedtuple('_SignKey', ['private_key', 'chain'])):
-    pass
+class SignKey(dict):
+    def __init__(self, private_key, chain):
+        super(SignKey, self).__init__()
+        self['private_key'] = private_key
+        self['chain'] = chain
 
 
 class JSONSignature(object):
