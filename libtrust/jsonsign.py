@@ -9,11 +9,15 @@ from libtrust import util
 namedtuple = collections.namedtuple
 
 
+class JSONSignError(Exception):
+    pass
+
+
 class JsHeader(dict):
-    def __init__(self, public_key, algorithm, chain=None):
+    def __init__(self, jwk, algorithm, chain=None):
         super(JsHeader, self).__init__()
         chain = chain or []
-        self['public_key'] = public_key
+        self['jwk'] = jwk
         self['algorithm'] = algorithm
         self['chain'] = chain
 
@@ -76,3 +80,25 @@ class JSONSignature(object):
             )
         )
         return sig_bytes, algorithm
+
+    def verify(self):
+        keys = []
+        for sign in self.signatures:
+            sign_bytes = self.sign_bytes(sign['protected'])
+            if sign['header']['chain']:
+                raise NotImplementedError()
+            elif sign['header']['jwk']:
+                public_key = sign['header']['jwk']
+            else:
+                raise JSONSignError("missing public key")
+
+            sig_bytes = util.jose_base64_url_decode(sign['signature'])
+
+            try:
+                public_key.verify(StringIO.StringIO(sign_bytes), sign['header']['algorithm'], sig_bytes)
+            except Exception as e:
+                raise e
+
+            keys.append(public_key)
+
+        return keys

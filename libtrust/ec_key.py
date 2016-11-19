@@ -95,6 +95,9 @@ class ECKey(object):
     def signature_algorithm(self):
         return self.curve.signature_algorithm()
 
+    def __eq__(self, other):
+        return self.crypto_public_key().public_numbers() == other.crypto_public_key().public_numbers()
+
 
 class ECPublicKey(ECKey, PublicKey):
     def __init__(self, key):

@@ -48,6 +48,9 @@ class RSAKey(object):
     def marshal_json(self):
         return util.dump_json(self.to_map())
 
+    def __eq__(self, other):
+        return self.crypto_public_key().public_numbers() == other.crypto_public_key().public_numbers()
+
 
 class RSAPublicKey(RSAKey, PublicKey):
     def __init__(self, public_key):

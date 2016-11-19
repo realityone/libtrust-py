@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import unittest
 
+from libtrust import ec_key
 from libtrust import jsonsign
 from libtrust import rsa_key
 from tests import fixtures_path
@@ -12,17 +13,22 @@ class JSONSignTest(unittest.TestCase):
         self.content = {
             'hello': '123'
         }
-        self.js = jsonsign.JSONSignature.from_map(self.content)
         with open(fixtures_path('private.pem'), 'r') as f:
-            self.private_key = rsa_key.RSAPrivateKey.from_pem(f.read())
+            self.rsa_private_key = rsa_key.RSAPrivateKey.from_pem(f.read())
+        with open(fixtures_path('ec-private.pem'), 'r') as f:
+            self.ec_private_key = ec_key.ECPrivateKey.from_pem(f.read())
+
+    def create_js(self):
+        return jsonsign.JSONSignature.from_map(self.content)
 
     def test_from_map(self):
-        self.assertEqual('ewogICAiaGVsbG8iOiAiMTIzIgp9', self.js.payload)
+        self.assertEqual('ewogICAiaGVsbG8iOiAiMTIzIgp9', self.create_js().payload)
         self.assertEqual('eyJmb3JtYXRMZW5ndGgiOjE5LCJmb3JtYXRUYWlsIjoiQ24wIiwidGltZSI6IjIwMTYtMTEtMDZUMDk6MDQ6MzJaIn0',
-                         self.js.protected_header(timestamp=1478423072))
+                         self.create_js().protected_header(timestamp=1478423072))
 
     def test_sign(self):
-        sig_bytes, algorithm = self.js.sign(self.private_key, timestamp=1478423072)
+        rsa_js = self.create_js()
+        rsa_sig_bytes, rsa_algorithm = rsa_js.sign(self.rsa_private_key, timestamp=1478423072)
         self.assertEqual(
             [176, 211, 90, 236, 109, 15, 137, 15, 6, 6, 165, 219, 181, 42, 9, 152, 25, 15, 64, 216, 150, 82, 197, 105, 13, 178,
              181, 37, 234, 181, 203, 70, 117, 87, 106, 85, 176, 255, 112, 95, 193, 198, 89, 87, 84, 99, 233, 180, 216, 81, 236,
@@ -45,8 +51,16 @@ class JSONSignTest(unittest.TestCase):
              22, 119, 214, 222, 151, 216, 128, 76, 222, 217, 197, 176, 66, 173, 151, 72, 198, 49, 21, 246, 106, 131, 157, 164,
              199, 166, 103, 204, 85, 78, 194, 10, 38, 248, 95, 181, 233, 237, 199, 166, 254, 222, 77, 216, 221, 17, 45, 120, 8,
              174, 23, 193, 150, 133, 169, 128, 107, 208, 145, 121, 130],
-            [ord(c) for c in sig_bytes]
+            [ord(c) for c in rsa_sig_bytes]
         )
         self.assertEqual(
-            algorithm, 'RS256'
+            rsa_algorithm, 'RS256'
         )
+        self.assertEqual([self.rsa_private_key.public_key()], rsa_js.verify())
+
+        ec_js = self.create_js()
+        ec_sig_bytes, ec_algorithm = ec_js.sign(self.ec_private_key, timestamp=1478423072)
+        self.assertEqual(
+            ec_algorithm, 'ES256'
+        )
+        self.assertEqual([self.ec_private_key.public_key()], ec_js.verify())
