@@ -64,3 +64,35 @@ class JSONSignTest(unittest.TestCase):
             ec_algorithm, 'ES256'
         )
         self.assertEqual([self.ec_private_key.public_key()], ec_js.verify())
+
+    def test_ec_key_verify(self):
+        from libtrust import util
+        from libtrust.jsonsign import JsHeader
+        from libtrust.jsonsign import JsSignature
+        sig_bytes = str('').join(
+            [
+                chr(c) for c in
+                [
+                    53, 176, 9, 188, 171, 104, 49, 228, 136, 38, 67, 255, 195, 21, 235, 107, 150, 22, 152, 124, 80,
+                    89, 129, 125,
+                    160, 26, 54, 23, 67, 221, 200, 125, 230, 77, 166, 151, 195, 132, 181, 179, 15, 116, 43, 17,
+                    159, 236, 145,
+                    217, 20, 64, 47, 45, 101, 174, 255, 235, 54, 248, 139, 227, 169, 241, 60, 138
+                ]
+                ]
+        )
+        protected = 'eyJmb3JtYXRMZW5ndGgiOjE5LCJmb3JtYXRUYWlsIjoiQ24wIiwidGltZSI6IjIwMTYtMTEtMDZUMDk6MDQ6MzJaIn0'
+
+        ec_js = self.create_js()
+        ec_js.signatures.append(
+            JsSignature(
+                JsHeader(
+                    self.ec_private_key.public_key(),
+                    'ES256'
+                ),
+                util.jose_base64_url_encode(sig_bytes),
+                protected
+            )
+        )
+
+        ec_js.verify()
