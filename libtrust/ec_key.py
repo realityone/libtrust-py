@@ -70,9 +70,6 @@ class ECKey(object):
     def _numbers(self):
         raise NotImplementedError()
 
-    def marshal_json(self):
-        return util.dump_json(self.to_map())
-
     def key_id(self):
         der_bytes = self.crypto_public_key().public_bytes(
             serialization.Encoding.DER,

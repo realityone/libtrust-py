@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import StringIO
 import collections
+import json
 
 from libtrust import hash as hash_
 from libtrust import util
@@ -9,32 +10,74 @@ from libtrust import util
 namedtuple = collections.namedtuple
 
 
+def detect_json_indent(json_content):
+    indent = ''
+    if len(json_content) > 2 and json_content[0] == '{' and json_content['1'] == '\n':
+        quote_index = json_content[1:].find('"')
+        if quote_index > 0:
+            indent = json_content[2:quote_index + 1]
+        return len(indent)
+
+
 class JSONSignError(Exception):
     pass
 
 
-class JsHeader(dict):
+class JSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if hasattr(o, 'json'):
+            return o.json()
+        return super(JSONEncoder, self).default(o)
+
+
+class JSONDecoder(json.JSONDecoder):
+    pass
+
+
+class JsHeader(object):
     def __init__(self, jwk, algorithm, chain=None):
         super(JsHeader, self).__init__()
         chain = chain or []
-        self['jwk'] = jwk
-        self['algorithm'] = algorithm
-        self['chain'] = chain
+        self.jwk = jwk
+        self.algorithm = algorithm
+        self.chain = chain
+
+    def json(self):
+        data = collections.OrderedDict((
+            ('jwk', self.jwk),
+            ('alg', self.algorithm),
+        ))
+        if self.chain:
+            data['chain'] = self.chain
+        return data
 
 
-class JsSignature(dict):
+class JsSignature(object):
     def __init__(self, header, signature, protected):
         super(JsSignature, self).__init__()
-        self['header'] = header
-        self['signature'] = signature
-        self['protected'] = protected
+        self.header = header
+        self.signature = signature
+        self.protected = protected
+
+    def json(self):
+        return collections.OrderedDict((
+            ('header', self.header),
+            ('signature', self.signature),
+            ('protected', self.protected)
+        ))
 
 
-class SignKey(dict):
+class SignKey(object):
     def __init__(self, private_key, chain):
         super(SignKey, self).__init__()
-        self['private_key'] = private_key
-        self['chain'] = chain
+        self.private_key = private_key
+        self.chain = chain
+
+    def json(self):
+        return collections.OrderedDict((
+            ('private_key', self.private_key),
+            ('chain', self.chain)
+        ))
 
 
 class JSONSignature(object):
@@ -84,21 +127,71 @@ class JSONSignature(object):
     def verify(self):
         keys = []
         for sign in self.signatures:
-            sign_bytes = self.sign_bytes(sign['protected'])
-            if sign['header']['chain']:
+            sign_bytes = self.sign_bytes(sign.protected)
+            if sign.header.chain:
                 raise NotImplementedError()
-            elif sign['header']['jwk']:
-                public_key = sign['header']['jwk']
+            elif sign.header.jwk:
+                public_key = sign.header.jwk
             else:
                 raise JSONSignError("missing public key")
 
-            sig_bytes = util.jose_base64_url_decode(sign['signature'])
+            sig_bytes = util.jose_base64_url_decode(sign.signature)
 
             try:
-                public_key.verify(StringIO.StringIO(sign_bytes), sign['header']['algorithm'], sig_bytes)
+                public_key.verify(StringIO.StringIO(sign_bytes), sign.header.algorithm, sig_bytes)
             except Exception as e:
                 raise e
 
             keys.append(public_key)
 
         return keys
+
+    def jws(self):
+        if not self.signatures:
+            raise JSONSignError("missing signature")
+
+        self.signatures.sort()
+        json_map = collections.OrderedDict((
+            ('payload', self.payload),
+            ('signatures', self.signatures)
+        ))
+        return util.dump_json(json_map, sort_keys=False, indent=3, separators=(',', ': '), cls=JSONEncoder)
+
+    @classmethod
+    def new_json_signature(cls, content, *signatures):
+        indent = detect_json_indent(content)
+        payload = util.jose_base64_url_encode(content)
+
+        not_space = lambda c: c not in ('\t', '\n', '\v', '\f', '\r', ' ', '\x85', '\xa0')
+        last_index_func = lambda d, f: len(d) - next((i for i, c in enumerate(d[::-1]) if f(c)), -1) - 1
+
+        close_index = last_index_func(content, not_space)
+        if content[close_index] != '{':
+            return JSONSignError("invalid json content")
+
+        last_rune_index = last_index_func(content[:close_index], not_space)
+        if content[last_rune_index] == ',':
+            raise JSONSignError("invalid json content")
+
+        format_length = last_rune_index + 1
+        format_tail = content[format_length:]
+
+        if signatures:
+            raise NotImplementedError()
+
+        js = cls(payload, indent, format_length, format_tail, signatures=signatures)
+        return js
+
+    @classmethod
+    def parse_jws(cls, content):
+        parsed = json.loads(content)
+        for f in ('payload', 'signature'):
+            if f not in parsed:
+                raise JSONSignError("field `{}` missed".format(f))
+
+        if not parsed['signature']:
+            raise JSONSignError("missing signatures")
+
+        payload = util.jose_base64_url_decode(parsed['payload'])
+        js = cls.new_json_signature(payload)
+        return js

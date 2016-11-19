@@ -45,9 +45,6 @@ class RSAKey(object):
         hash_bytes = hasher.finalize()
         return util.key_id_encode(hash_bytes[:30])
 
-    def marshal_json(self):
-        return util.dump_json(self.to_map())
-
     def __eq__(self, other):
         return self.crypto_public_key().public_numbers() == other.crypto_public_key().public_numbers()
 
