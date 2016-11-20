@@ -4,8 +4,8 @@ import StringIO
 import collections
 import json
 
-from libtrust import hash as hash_
-from libtrust import util
+from . import hash as hash_
+from . import util
 
 namedtuple = collections.namedtuple
 

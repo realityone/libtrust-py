@@ -9,9 +9,9 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.asymmetric import rsa
-from libtrust import hash as hash_
-from libtrust import key
-from libtrust import util
+from . import hash as hash_
+from . import key
+from . import util
 
 __all__ = ['RSAPublicKey', 'RSAPrivateKey']
 

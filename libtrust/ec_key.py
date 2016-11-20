@@ -9,9 +9,9 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric import utils as asy_utils
-from libtrust import hash as hash_
-from libtrust import key
-from libtrust import util
+from . import hash as hash_
+from . import key
+from . import util
 
 __all__ = ['ECPublicKey', 'ECPrivateKey']
 

@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import collections
 
-from libtrust import util
+from . import util
 
 __all__ = ['parse_public_key_jwk']
 
