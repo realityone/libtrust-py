@@ -6,6 +6,22 @@ However libtrust has been deprecated, sign/verify manifest with docker distribut
 
 ## Usage
 
+### Install
+
+You can install from PyPi.
+
+```shell
+$ pip install libtrust-py
+```
+
+Or install from GitHub for latest version.
+
+```shell
+$ pip install https://github.com/realityone/libtrust-py/archive/master.zip
+```
+
+### Sign & Verify
+
 ```python
 from libtrust import rsa_key
 from libtrust import jsonsign
@@ -80,8 +96,11 @@ js2 = jsonsign.JSONSignature.parse_jws(jws)
 jws2 = js2.jws()
 
 print jws, jws2, jws == jws2
+
+# Verify jws
+print js.verify() == js2.verify()
 ```
 
 ## Reference
 
-[docker/libtrust](https://github.com/docker/libtrust)
+- [docker/libtrust](https://github.com/docker/libtrust)

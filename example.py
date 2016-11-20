@@ -71,3 +71,6 @@ js2 = jsonsign.JSONSignature.parse_jws(jws)
 jws2 = js2.jws()
 
 print jws, jws2, jws == jws2
+
+# Verify jws
+print js.verify() == js2.verify()
