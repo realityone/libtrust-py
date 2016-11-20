@@ -1,12 +1,3 @@
-# libtrust-py
-
-Integrate [docker/libtrust](https://github.com/docker/libtrust) with python.
-
-However libtrust has been deprecated, sign/verify manifest with docker distribution in python still cause great suffering.
-
-## Usage
-
-```python
 from libtrust import rsa_key
 from libtrust import jsonsign
 
@@ -80,8 +71,3 @@ js2 = jsonsign.JSONSignature.parse_jws(jws)
 jws2 = js2.jws()
 
 print jws, jws2, jws == jws2
-```
-
-## Reference
-
-[docker/libtrust](https://github.com/docker/libtrust)
