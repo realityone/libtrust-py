@@ -16,7 +16,7 @@ def detect_json_indent(json_content):
         quote_index = json_content[1:].find('"')
         if quote_index > 0:
             indent = json_content[2:quote_index + 1]
-        return len(indent)
+        return indent
 
 
 class JSONSignError(Exception):
@@ -103,7 +103,7 @@ class JSONSignature(object):
     @classmethod
     def from_map(cls, content):
         indent = 3
-        payload = util.dump_json(content, indent=3, separators=(',', ': '))
+        payload = util.dump_json(content, indent=indent, separators=(',', ': '))
         payload_b64url = util.jose_base64_url_encode(payload)
         format_length = len(payload) - 2
         return cls(payload_b64url, ' ' * indent, format_length, payload[format_length:])
@@ -167,7 +167,7 @@ class JSONSignature(object):
             ('payload', self.payload),
             ('signatures', self.signatures)
         ))
-        return util.dump_json(json_map, sort_keys=False, indent=3, separators=(',', ': '), cls=JSONEncoder)
+        return util.dump_json(json_map, sort_keys=False, indent=self.indent.count(' '), separators=(',', ': '), cls=JSONEncoder)
 
     @classmethod
     def new_json_signature(cls, content, *signatures):
