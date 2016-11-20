@@ -12,7 +12,7 @@ namedtuple = collections.namedtuple
 
 def detect_json_indent(json_content):
     indent = ''
-    if len(json_content) > 2 and json_content[0] == '{' and json_content['1'] == '\n':
+    if len(json_content) > 2 and json_content[0] == '{' and json_content[1] == '\n':
         quote_index = json_content[1:].find('"')
         if quote_index > 0:
             indent = json_content[2:quote_index + 1]
@@ -28,10 +28,6 @@ class JSONEncoder(json.JSONEncoder):
         if hasattr(o, 'json'):
             return o.json()
         return super(JSONEncoder, self).default(o)
-
-
-class JSONDecoder(json.JSONDecoder):
-    pass
 
 
 class JsHeader(object):
@@ -51,6 +47,15 @@ class JsHeader(object):
             data['chain'] = self.chain
         return data
 
+    @classmethod
+    def from_map(cls, header_map):
+        from libtrust.key import parse_public_key_jwk
+
+        jwk = parse_public_key_jwk(header_map['jwk'])
+        algorithm = header_map['alg']
+        chain = header_map.get('chain')
+        return cls(jwk, algorithm, chain=chain)
+
 
 class JsSignature(object):
     def __init__(self, header, signature, protected):
@@ -65,6 +70,13 @@ class JsSignature(object):
             ('signature', self.signature),
             ('protected', self.protected)
         ))
+
+    @classmethod
+    def from_map(cls, js_signature_map):
+        header = JsHeader.from_map(js_signature_map['header'])
+        signature = js_signature_map['signature']
+        protected = js_signature_map['protected']
+        return cls(header, signature, protected)
 
 
 class SignKey(object):
@@ -166,8 +178,8 @@ class JSONSignature(object):
         last_index_func = lambda d, f: len(d) - next((i for i, c in enumerate(d[::-1]) if f(c)), -1) - 1
 
         close_index = last_index_func(content, not_space)
-        if content[close_index] != '{':
-            return JSONSignError("invalid json content")
+        if content[close_index] != '}':
+            raise JSONSignError("invalid json content")
 
         last_rune_index = last_index_func(content[:close_index], not_space)
         if content[last_rune_index] == ',':
@@ -176,8 +188,7 @@ class JSONSignature(object):
         format_length = last_rune_index + 1
         format_tail = content[format_length:]
 
-        if signatures:
-            raise NotImplementedError()
+        signatures = [JsSignature.from_map(sign) for sign in signatures]
 
         js = cls(payload, indent, format_length, format_tail, signatures=signatures)
         return js
@@ -185,13 +196,13 @@ class JSONSignature(object):
     @classmethod
     def parse_jws(cls, content):
         parsed = json.loads(content)
-        for f in ('payload', 'signature'):
+        for f in ('payload', 'signatures'):
             if f not in parsed:
                 raise JSONSignError("field `{}` missed".format(f))
 
-        if not parsed['signature']:
+        if not parsed['signatures']:
             raise JSONSignError("missing signatures")
 
         payload = util.jose_base64_url_decode(parsed['payload'])
-        js = cls.new_json_signature(payload)
+        js = cls.new_json_signature(payload, *parsed.get('signatures', []))
         return js

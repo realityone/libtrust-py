@@ -1,11 +1,10 @@
 from __future__ import unicode_literals
 
 import collections
-import json
 
 from libtrust import util
 
-__all__ = ['unmarshal_public_key_jwk']
+__all__ = ['parse_public_key_jwk']
 
 
 class PublicKey(object):
@@ -45,14 +44,12 @@ class PrivateKey(PublicKey):
         raise NotImplementedError()
 
 
-def unmarshal_public_key_jwk(data):
+def parse_public_key_jwk(jwk):
     from libtrust import ec_key
     from libtrust import rsa_key
 
-    jwk = json.loads(data)
-
     kty = jwk['kty']
     return {
-        'EC': ec_key.ec_public_key_from_map(jwk),
-        'RSA': rsa_key.rsa_public_key_from_map(jwk)
-    }[kty]
+        'EC': ec_key.ec_public_key_from_map,
+        'RSA': rsa_key.rsa_public_key_from_map
+    }[kty](jwk)

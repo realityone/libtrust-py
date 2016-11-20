@@ -175,3 +175,6 @@ class JSONSignTest(unittest.TestCase):
         )
         jws = rsa_js.jws()
         self.assertEqual(origin_jws, jws)
+
+        parsed_rsa_js = rsa_js.parse_jws(jws)
+        self.assertEqual(origin_jws, parsed_rsa_js.jws())
