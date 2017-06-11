@@ -8,12 +8,13 @@ SOURCE_DIR = os.path.join(ROOT_DIR)
 
 install_requires = [
     'enum34>=1.1.6',
-    'cryptography>=1.5.2',
+    'cryptography>=1.9',
+    'six>=1.4.1',
 ]
 
 setup(
     name="libtrust-py",
-    version='0.1.1',
+    version='0.2',
     description="Integrate docker/libtrust with python.",
     url='https://github.com/realityone/libtrust-py',
     packages=['libtrust'],

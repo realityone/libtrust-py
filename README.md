@@ -4,6 +4,8 @@ Integrate [docker/libtrust](https://github.com/docker/libtrust) with python.
 
 However libtrust has been deprecated, sign/verify manifest with docker distribution in python still cause great suffering.
 
+Works for both Python 2.7.* and Python 3.*.
+
 ## Usage
 
 ### Install
@@ -23,10 +25,10 @@ $ pip install https://github.com/realityone/libtrust-py/archive/master.zip
 ### Sign & Verify
 
 ```python
-from libtrust import rsa_key
 from libtrust import jsonsign
+from libtrust import rsa_key
 
-pem_data = """-----BEGIN RSA PRIVATE KEY-----
+pem_data = b"""-----BEGIN RSA PRIVATE KEY-----
 MIIJKAIBAAKCAgEAwq1mCmgn460MC6MnCqranQNTgmKuKPl7bNH7Qc6hBDGHlnIj
 U6q/h2KXF37TC5Y9tsKvQ4b8jd0Sf0dXFHml8qunSvNnqsSvoD8tSPUKqXS6jrlb
 GSQXhya7BL1RPGccD5K1xrV73QlI6uFPd3APRQYij5EOB8IOWEQujJk/8Mjc0EC9
@@ -95,10 +97,10 @@ jws = js.jws()
 js2 = jsonsign.JSONSignature.parse_jws(jws)
 jws2 = js2.jws()
 
-print jws, jws2, jws == jws2
+print(jws, jws2, jws == jws2)
 
 # Verify jws
-print js.verify() == js2.verify()
+print(js.verify() == js2.verify())
 ```
 
 ## Reference
