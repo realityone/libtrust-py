@@ -1,8 +1,9 @@
 from __future__ import unicode_literals
 
-import StringIO
 import collections
 import json
+
+import six
 
 from . import hash as hash_
 from . import util
@@ -67,15 +68,15 @@ class JsSignature(object):
     def json(self):
         return collections.OrderedDict((
             ('header', self.header),
-            ('signature', self.signature),
-            ('protected', self.protected)
+            ('signature', self.signature.decode('utf-8')),
+            ('protected', self.protected.decode('utf-8'))
         ))
 
     @classmethod
     def from_map(cls, js_signature_map):
         header = JsHeader.from_map(js_signature_map['header'])
-        signature = js_signature_map['signature']
-        protected = js_signature_map['protected']
+        signature = js_signature_map['signature'].encode('utf-8')
+        protected = js_signature_map['protected'].encode('utf-8')
         return cls(header, signature, protected)
 
 
@@ -104,24 +105,24 @@ class JSONSignature(object):
     def from_map(cls, content):
         indent = 3
         payload = util.dump_json(content, indent=indent, separators=(',', ': '))
-        payload_b64url = util.jose_base64_url_encode(payload)
+        payload_b64url = util.jose_base64_url_encode(payload.encode())
         format_length = len(payload) - 2
         return cls(payload_b64url, ' ' * indent, format_length, payload[format_length:])
 
     def protected_header(self, timestamp=None):
         protected = {
             'formatLength': self.format_length,
-            'formatTail': util.jose_base64_url_encode(self.format_tail),
+            'formatTail': util.jose_base64_url_encode(self.format_tail.encode('utf-8')).decode('utf-8'),
             'time': util.utc_rfc3339(timestamp=timestamp)
         }
-        return util.jose_base64_url_encode(util.dump_json(protected))
+        return util.jose_base64_url_encode(util.dump_json(protected).encode('utf-8'))
 
     def sign_bytes(self, protected):
-        return '{}.{}'.format(protected, self.payload).encode('utf-8')
+        return b'.'.join((protected, self.payload))
 
     def sign(self, private_key, timestamp=None):
         protected = self.protected_header(timestamp=timestamp)
-        sign_bytes = StringIO.StringIO(self.sign_bytes(protected))
+        sign_bytes = six.StringIO(self.sign_bytes(protected).decode())
 
         sig_bytes, algorithm = private_key.sign(sign_bytes, hash_.HashID.SHA256)
         self.signatures.append(
@@ -150,7 +151,7 @@ class JSONSignature(object):
             sig_bytes = util.jose_base64_url_decode(sign.signature)
 
             try:
-                public_key.verify(StringIO.StringIO(sign_bytes), sign.header.algorithm, sig_bytes)
+                public_key.verify(six.StringIO(sign_bytes.decode()), sign.header.algorithm, sig_bytes)
             except Exception as e:
                 raise e
 
@@ -164,7 +165,7 @@ class JSONSignature(object):
 
         self.signatures.sort()
         json_map = collections.OrderedDict((
-            ('payload', self.payload),
+            ('payload', self.payload.decode('utf-8')),
             ('signatures', self.signatures)
         ))
         return util.dump_json(json_map, sort_keys=False, indent=self.indent.count(' '), separators=(',', ': '), cls=JSONEncoder)
@@ -172,7 +173,7 @@ class JSONSignature(object):
     @classmethod
     def new_json_signature(cls, content, *signatures):
         indent = detect_json_indent(content)
-        payload = util.jose_base64_url_encode(content)
+        payload = util.jose_base64_url_encode(content.encode('utf-8'))
 
         not_space = lambda c: c not in ('\t', '\n', '\v', '\f', '\r', ' ', '\x85', '\xa0')
         last_index_func = lambda d, f: len(d) - next((i for i, c in enumerate(d[::-1]) if f(c)), -1) - 1
@@ -203,6 +204,6 @@ class JSONSignature(object):
         if not parsed['signatures']:
             raise JSONSignError("missing signatures")
 
-        payload = util.jose_base64_url_decode(parsed['payload'])
+        payload = util.jose_base64_url_decode(parsed['payload'].encode('utf-8')).decode('utf-8')
         js = cls.new_json_signature(payload, *parsed.get('signatures', []))
         return js

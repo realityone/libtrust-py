@@ -1,8 +1,9 @@
 from __future__ import unicode_literals
 
-import StringIO
 import json
 import unittest
+
+import six
 
 from libtrust import hash as hash_
 from libtrust import rsa_key
@@ -12,9 +13,9 @@ from tests import fixtures_path
 class RSAKeyTest(unittest.TestCase):
     def setUp(self):
         with open(fixtures_path('private.pem'), 'r') as f:
-            self.private_key = rsa_key.RSAPrivateKey.from_pem(f.read())
+            self.private_key = rsa_key.RSAPrivateKey.from_pem(f.read().encode())
         with open(fixtures_path('public.pem'), 'r') as f:
-            self.public_key = rsa_key.RSAPublicKey.from_pem(f.read())
+            self.public_key = rsa_key.RSAPublicKey.from_pem(f.read().encode())
 
     def test_to_pem(self):
         self.private_key.pem_block()
@@ -40,7 +41,7 @@ class RSAKeyTest(unittest.TestCase):
         self.assertEqual(pub_key_json, pub_key.marshal_json())
 
     def test_sign(self):
-        message = StringIO.StringIO('Hello, World!'.encode('utf-8'))
+        message = six.StringIO(u'Hello, World!')
         sig_algs = (hash_.RS256, hash_.RS384, hash_.RS512)
         origin_sig = (
             [47, 53, 27, 154, 98, 40, 87, 246, 73, 49, 80, 241, 186, 20, 180, 75, 78, 152, 83, 140, 12, 163, 134, 214, 100, 92,
@@ -114,4 +115,4 @@ class RSAKeyTest(unittest.TestCase):
             message.seek(0)
             self.assertTrue(self.public_key.verify(message, alg, sig))
 
-            self.assertEqual(origin_sig[i], [ord(c) for c in sig])
+            self.assertEqual(origin_sig[i], list(six.iterbytes(sig)))

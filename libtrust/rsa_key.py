@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.asymmetric import rsa
+
 from . import hash as hash_
 from . import key
 from . import util
@@ -74,8 +75,8 @@ class RSAPublicKey(RSAKey, PublicKey):
         return {
             'kty': self.key_type(),
             'kid': self.key_id(),
-            'n': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.n)),
-            'e': util.jose_base64_url_encode(util.serialize_rsa_public_exponent_param(self.numbers.e))
+            'n': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.n)).decode('utf-8'),
+            'e': util.jose_base64_url_encode(util.serialize_rsa_public_exponent_param(self.numbers.e)).decode('utf-8')
         }
 
     def verify(self, buffer, alg, signature):
@@ -86,7 +87,7 @@ class RSAPublicKey(RSAKey, PublicKey):
             sig_alg.hasher()
         )
         while True:
-            d = buffer.read(1024)
+            d = buffer.read(1024).encode()
             if not d:
                 break
             verifier.update(d)
@@ -134,12 +135,12 @@ class RSAPrivateKey(RSAKey, PrivateKey):
     def to_map(self):
         public_key_map = self.public_key().to_map()
         private_key_map = {
-            'd': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.d)),
-            'p': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.p)),
-            'q': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.q)),
-            'dp': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.dmp1)),
-            'dq': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.dmq1)),
-            'qi': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.iqmp)),
+            'd': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.d)).decode('utf-8'),
+            'p': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.p)).decode('utf-8'),
+            'q': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.q)).decode('utf-8'),
+            'dp': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.dmp1)).decode('utf-8'),
+            'dq': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.dmq1)).decode('utf-8'),
+            'qi': util.jose_base64_url_encode(cry_utils.int_to_bytes(self.numbers.iqmp)).decode('utf-8'),
         }
         private_key_map.update(public_key_map)
         return private_key_map
@@ -151,7 +152,7 @@ class RSAPrivateKey(RSAKey, PrivateKey):
             sig_alg.hasher()
         )
         while True:
-            d = buffer.read(1024)
+            d = buffer.read(1024).encode('utf-8')
             if not d:
                 break
             signer.update(d)
@@ -160,8 +161,8 @@ class RSAPrivateKey(RSAKey, PrivateKey):
 
 
 def rsa_public_key_from_map(jwk):
-    nb64url = jwk['n']
-    eb64url = jwk['e']
+    nb64url = jwk['n'].encode('utf-8')
+    eb64url = jwk['e'].encode('utf-8')
 
     n = util.parse_rsa_modules_params(nb64url)
     e = util.parse_rsa_public_exponent_param(eb64url)

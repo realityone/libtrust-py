@@ -1,14 +1,15 @@
 from __future__ import unicode_literals
 
 import copy
-
 import enum
+
 from cryptography import utils as cry_utils
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric import utils as asy_utils
+
 from . import hash as hash_
 from . import key
 from . import util
@@ -130,16 +131,16 @@ class ECPublicKey(ECKey, PublicKey):
         y_bytes = cry_utils.int_to_bytes(self.numbers.y)
         octet_length = (self.curve.bit_size() + 7) >> 3
 
-        x_bytes = str('\x00') * (octet_length - len(x_bytes)) + x_bytes
-        y_bytes = str('\x00') * (octet_length - len(y_bytes)) + y_bytes
+        x_bytes = b'\x00' * (octet_length - len(x_bytes)) + x_bytes
+        y_bytes = b'\x00' * (octet_length - len(y_bytes)) + y_bytes
 
-        jwk['x'] = util.jose_base64_url_encode(x_bytes)
-        jwk['y'] = util.jose_base64_url_encode(y_bytes)
+        jwk['x'] = util.jose_base64_url_encode(x_bytes).decode('utf-8')
+        jwk['y'] = util.jose_base64_url_encode(y_bytes).decode('utf-8')
         return jwk
 
     def verify(self, buffer, alg, signature):
         sig_length = len(signature)
-        r_bytes, s_bytes = signature[:sig_length / 2], signature[sig_length / 2:]
+        r_bytes, s_bytes = signature[:sig_length // 2], signature[sig_length // 2:]
         r, s = cry_utils.int_from_bytes(r_bytes, 'big'), cry_utils.int_from_bytes(s_bytes, 'big')
 
         signature = asy_utils.encode_dss_signature(r, s)
@@ -149,7 +150,7 @@ class ECPublicKey(ECKey, PublicKey):
             ec.ECDSA(sig_alg.hasher())
         )
         while True:
-            d = buffer.read(1024)
+            d = buffer.read(1024).encode()
             if not d:
                 break
             verifier.update(d)
@@ -199,9 +200,9 @@ class ECPrivateKey(ECKey, PrivateKey):
         d_bytes = cry_utils.int_to_bytes(self.numbers.private_value)
         octet_length = (len(cry_utils.int_to_bytes(self.numbers.private_value - 1)) + 7) >> 3
 
-        d_bytes = str('\x00') * (octet_length - len(d_bytes)) + d_bytes
+        d_bytes = b'\x00' * (octet_length - len(d_bytes)) + d_bytes
         private_key_map = {
-            'd': util.jose_base64_url_encode(d_bytes)
+            'd': util.jose_base64_url_encode(d_bytes).decode('utf-8')
         }
 
         private_key_map.update(public_key_map)
@@ -213,7 +214,7 @@ class ECPrivateKey(ECKey, PrivateKey):
             ec.ECDSA(sig_alg.hasher())
         )
         while True:
-            d = buffer.read(1024)
+            d = buffer.read(1024).encode()
             if not d:
                 break
             signer.update(d)
@@ -223,8 +224,8 @@ class ECPrivateKey(ECKey, PrivateKey):
         s_bytes = cry_utils.int_to_bytes(s)
         octet_length = (self.public_key().curve.bit_size() + 7) >> 3
 
-        r_bytes = str('\x00') * (octet_length - len(r_bytes)) + r_bytes
-        s_bytes = str('\x00') * (octet_length - len(s_bytes)) + s_bytes
+        r_bytes = b'\x00' * (octet_length - len(r_bytes)) + r_bytes
+        s_bytes = b'\x00' * (octet_length - len(s_bytes)) + s_bytes
         signature = r_bytes + s_bytes
         return signature, self.signature_algorithm.header_param()
 
@@ -235,8 +236,8 @@ def ec_public_key_from_map(jwk):
 
     crypto_curve = curve.crypto_curve()
 
-    xb64url = jwk['x']
-    yb64url = jwk['y']
+    xb64url = jwk['x'].encode('utf-8')
+    yb64url = jwk['y'].encode('utf-8')
     x = util.parse_ec_coordinate(xb64url, curve)
     y = util.parse_ec_coordinate(yb64url, curve)
     public_key = ec.EllipticCurvePublicNumbers(x, y, crypto_curve()).public_key(default_backend())
