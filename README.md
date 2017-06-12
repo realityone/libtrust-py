@@ -2,6 +2,8 @@
 
 Integrate [docker/libtrust](https://github.com/docker/libtrust) with python.
 
+[![Build Status](https://travis-ci.org/realityone/libtrust-py.svg?branch=master)](https://travis-ci.org/realityone/libtrust-py)
+
 However libtrust has been deprecated, sign/verify manifest with docker distribution in python still cause great suffering.
 
 Works for both Python 2.7.* and Python 3.*.
